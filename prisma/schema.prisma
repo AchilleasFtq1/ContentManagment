@@ -8,22 +8,26 @@ datasource db {
 }
 
 model PhoneNumber {
-  id          String   @id @default(cuid())
-  phoneNumber String   @unique
-  password    String
-  createdOn   DateTime @default(now())
-  active      Boolean  @default(true)
-  posts       Post[] // Relationship to posts
-  }
+  id            String          @id @default(cuid())
+  phoneNumber   String          @unique
+  password      String
+  createdOn     DateTime        @default(now())
+  active        Boolean         @default(true)
+  posts         Post[] // Relationship to posts
+  PhoneGroupUrl PhoneGroupUrl[]
+  PhoneAppRel   PhoneAppRel[]
+}
 
 model App {
-  id           String           @id @default(cuid())
-  appName      String
-  createdOn    DateTime         @default(now())
-  active       Boolean          @default(true)
-  products     Product[] // Relationship to products
-  contentSites ContentSiteRel[] // Relationship with content
-  Post         Post[]
+  id              String            @id @default(cuid())
+  appName         String
+  createdOn       DateTime          @default(now())
+  active          Boolean           @default(true)
+  products        Product[] // Relationship to products
+  contentSites    ContentSiteRel[] // Relationship with content
+  Post            Post[]
+  AppTopicKeyword AppTopicKeyword[]
+  PhoneAppRel     PhoneAppRel[]
 
   @@unique([appName])
 }
@@ -115,15 +119,13 @@ model Post {
   ContentMedia  ContentMedia[]
 }
 
-
-
 model PhoneGroupUrl {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   phoneGroup   PhoneNumber @relation(fields: [phoneGroupId], references: [id], onDelete: Cascade)
   phoneGroupId String
   url          String
-  createdOn    DateTime @default(now())
-  active       Boolean  @default(true)
+  createdOn    DateTime    @default(now())
+  active       Boolean     @default(true)
 }
 
 model AppTopicKeyword {
@@ -135,12 +137,12 @@ model AppTopicKeyword {
 }
 
 model PhoneAppRel {
-  id        String       @id @default(cuid())
-  phone     PhoneNumber  @relation(fields: [phoneId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  phone     PhoneNumber @relation(fields: [phoneId], references: [id], onDelete: Cascade)
   phoneId   String
-  app       App          @relation(fields: [appId], references: [id], onDelete: Cascade)
+  app       App         @relation(fields: [appId], references: [id], onDelete: Cascade)
   appId     String
-  createdOn DateTime     @default(now())
+  createdOn DateTime    @default(now())
 }
 
 // Necessary for NextAuth (no changes here)
