@@ -22,6 +22,10 @@ export class ProductService {
     return productRepo.update(id, data);
   }
 
+  async getAllProducts() {
+    return productRepo.getAll();
+  }
+
   async deleteProduct(id: string) {
     return productRepo.delete(id);
   }

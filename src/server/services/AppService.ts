@@ -20,6 +20,10 @@ export class AppService {
     return appRepo.update(id, data);
   }
 
+  async getAllApps() {
+    return await appRepo.getAll();
+  }
+
   async deleteApp(id: string) {
     return appRepo.delete(id);
   }
