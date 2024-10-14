@@ -14,15 +14,14 @@ model PhoneNumber {
   createdOn   DateTime @default(now())
   active      Boolean  @default(true)
   posts       Post[] // Relationship to posts
-  Page        Page[]
-}
+  }
 
 model App {
   id           String           @id @default(cuid())
   appName      String
   createdOn    DateTime         @default(now())
+  active       Boolean          @default(true)
   products     Product[] // Relationship to products
-  pages        Page[] // Relationship to pages
   contentSites ContentSiteRel[] // Relationship with content
   Post         Post[]
 
@@ -33,6 +32,7 @@ model Product {
   id              String              @id @default(cuid())
   productName     String
   createdOn       DateTime            @default(now())
+  active          Boolean             @default(true)
   contentProducts ContentProductRel[] // Relationship with content
   posts           Post[] // Relationship to posts
   App             App?                @relation(fields: [appId], references: [id])
@@ -115,15 +115,32 @@ model Post {
   ContentMedia  ContentMedia[]
 }
 
-model Page {
-  id            String      @id @default(cuid())
-  phoneNumber   PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
-  phoneNumberId String
-  app           App         @relation(fields: [appId], references: [id], onDelete: Cascade)
-  appId         String
-  pageUrl       String
-  createdOn     DateTime    @default(now())
-  active        Boolean     @default(true)
+
+
+model PhoneGroupUrl {
+  id           String   @id @default(cuid())
+  phoneGroup   PhoneNumber @relation(fields: [phoneGroupId], references: [id], onDelete: Cascade)
+  phoneGroupId String
+  url          String
+  createdOn    DateTime @default(now())
+  active       Boolean  @default(true)
+}
+
+model AppTopicKeyword {
+  id        String   @id @default(cuid())
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  appId     String
+  keyword   String
+  createdOn DateTime @default(now())
+}
+
+model PhoneAppRel {
+  id        String       @id @default(cuid())
+  phone     PhoneNumber  @relation(fields: [phoneId], references: [id], onDelete: Cascade)
+  phoneId   String
+  app       App          @relation(fields: [appId], references: [id], onDelete: Cascade)
+  appId     String
+  createdOn DateTime     @default(now())
 }
 
 // Necessary for NextAuth (no changes here)
