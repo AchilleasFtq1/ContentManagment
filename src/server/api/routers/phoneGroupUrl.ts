@@ -1,39 +1,64 @@
 import { z } from "zod";
-
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { PhoneAppRelService } from "../../services/PhoneAppRelService";
+import { PhoneGroupUrlService } from "../../services/PhoneGroupUrlService";
 
-const phoneAppRelService = new PhoneAppRelService();
+const phoneGroupUrlService = new PhoneGroupUrlService();
 
-export const phoneAppRelRouter = createTRPCRouter({
-  createPhoneAppRel: protectedProcedure
-    .input(z.object({ phoneId: z.string(), appId: z.string() }))
+export const phoneGroupUrlRouter = createTRPCRouter({
+  // Create a new PhoneGroupUrl
+  createPhoneGroupUrl: protectedProcedure
+    .input(
+      z.object({
+        phoneGroupId: z.string(),
+        url: z.string().url(),
+      }),
+    )
     .mutation(async ({ input }) => {
-      return await phoneAppRelService.createPhoneAppRel(
-        input.phoneId,
-        input.appId,
+      return await phoneGroupUrlService.createPhoneGroupUrl(
+        input.phoneGroupId,
+        input.url,
       );
     }),
 
-  getAllPhoneAppRels: protectedProcedure.query(async () => {
-    return await phoneAppRelService.getAllPhoneAppRels();
+  // Get all PhoneGroupUrls
+  getAllPhoneGroupUrls: protectedProcedure.query(async () => {
+    return await phoneGroupUrlService.getAllPhoneGroupUrls();
   }),
 
-  getPhoneAppRelById: protectedProcedure
-    .input(z.object({ id: z.string() }))
+  // Get a PhoneGroupUrl by ID
+  getPhoneGroupUrlById: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+      }),
+    )
     .query(async ({ input }) => {
-      return await phoneAppRelService.getPhoneAppRelById(input.id);
+      return await phoneGroupUrlService.getPhoneGroupUrlById(input.id);
     }),
 
-  updatePhoneAppRel: protectedProcedure
-    .input(z.object({ id: z.string(), data: z.record(z.unknown()) }))
+  // Update a PhoneGroupUrl
+  updatePhoneGroupUrl: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        data: z.record(z.unknown()), // Accepts a record with unknown fields
+      }),
+    )
     .mutation(async ({ input }) => {
-      return await phoneAppRelService.updatePhoneAppRel(input.id, input.data);
+      return await phoneGroupUrlService.updatePhoneGroupUrl(
+        input.id,
+        input.data,
+      );
     }),
 
-  deletePhoneAppRel: protectedProcedure
-    .input(z.object({ id: z.string() }))
+  // Delete a PhoneGroupUrl
+  deletePhoneGroupUrl: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+      }),
+    )
     .mutation(async ({ input }) => {
-      return await phoneAppRelService.deletePhoneAppRel(input.id);
+      return await phoneGroupUrlService.deletePhoneGroupUrl(input.id);
     }),
 });
