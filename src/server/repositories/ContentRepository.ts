@@ -3,9 +3,6 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class ContentRepository {
-  static getById(contentId: string) {
-    throw new Error("Method not implemented.");
-  }
   async create(
     contentName: string,
     productIds: string[],

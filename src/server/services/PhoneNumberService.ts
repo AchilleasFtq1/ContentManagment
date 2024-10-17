@@ -3,6 +3,7 @@ import {
   type JwtPayload,
   type SignOptions,
   sign as jwtSign,
+  verify as jwtVerify,
 } from "jsonwebtoken";
 
 import { PhoneNumberRepository } from "../repositories/PhoneNumberRepository";
@@ -17,15 +18,17 @@ export class PhoneNumberService {
     if (existingPhone) {
       throw new Error("Phone number already registered");
     }
-    const hashedPassword: string = crypto
+
+    const hashedPassword = crypto
       .createHash("sha512")
       .update(password)
       .digest("hex");
-    return phoneNumberRepoInstance.create(phoneNumber, hashedPassword);
+
+    return await phoneNumberRepoInstance.create(phoneNumber, hashedPassword);
   }
 
   async getPhoneNumberDetails(id: string) {
-    return phoneNumberRepoInstance.getById(id);
+    return await phoneNumberRepoInstance.getById(id);
   }
 
   async updatePhoneNumber(id: string, data: Record<string, unknown>) {
@@ -35,15 +38,30 @@ export class PhoneNumberService {
         .update(data.password as string)
         .digest("hex");
     }
-    return phoneNumberRepoInstance.update(id, data);
+    return await phoneNumberRepoInstance.update(id, data);
   }
 
   async deletePhoneNumber(id: string) {
-    return phoneNumberRepoInstance.delete(id);
+    return await phoneNumberRepoInstance.delete(id);
   }
 
   async getAllPhoneNumbers() {
-    return phoneNumberRepoInstance.getAll();
+    return await phoneNumberRepoInstance.getAll();
+  }
+
+  async validateToken(token: string): Promise<JwtPayload> {
+    try {
+      const decoded = jwtVerify(token, JWT_SECRET);
+
+      if (typeof decoded === "string") {
+        throw new Error("Invalid token payload");
+      }
+
+      return decoded; // Removed 'as JwtPayload'
+    } catch (error) {
+      console.error("Token validation error:", error);
+      throw new Error("Invalid or expired token");
+    }
   }
 
   async authenticatePhoneNumber(
@@ -60,7 +78,7 @@ export class PhoneNumberService {
       throw new Error("Authentication failed");
     }
 
-    const hashedPassword: string = crypto
+    const hashedPassword = crypto
       .createHash("sha512")
       .update(password)
       .digest("hex");
@@ -77,9 +95,9 @@ export class PhoneNumberService {
     };
 
     try {
-      const token: string = jwtSign(payload, JWT_SECRET, signOptions);
+      const token = jwtSign(payload, JWT_SECRET, signOptions);
       return { token };
-    } catch (error: unknown) {
+    } catch (error) {
       console.error(
         "JWT signing error:",
         error instanceof Error ? error.message : "Unknown error",
