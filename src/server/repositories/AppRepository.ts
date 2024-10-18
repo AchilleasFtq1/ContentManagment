@@ -4,9 +4,6 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 // AppRepository.ts
 export class AppRepository {
-  static getById(appId: string) {
-    throw new Error("Method not implemented.");
-  }
   async create(appName: string): Promise<ReturnType<typeof prisma.app.create>> {
     return await prisma.app.create({
       data: { appName },
