@@ -1,5 +1,7 @@
 "use client";
 
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useRouter } from "next/navigation"; // Import useRouter for redirection
 import React, { useState } from "react";
 import Layout from "~/components/layout";
 import { Button } from "~/components/ui/button";
@@ -29,11 +31,14 @@ interface PhoneNumber {
 
 const PhoneNumbersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false); // Track if edit mode is active
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false); // Toggle password visibility
   const [isActive, setIsActive] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
+
+  const router = useRouter(); // Initialize router for redirection
 
   // Fetch all phone numbers from the API using tRPC
   const {
@@ -54,25 +59,38 @@ const PhoneNumbersPage: React.FC = () => {
 
   const handleSavePhoneNumber = async () => {
     try {
+      let phoneId: string | null = null;
+
       if (isEditMode && editId) {
         await updatePhoneNumberActiveStatusMutation.mutateAsync({
           id: editId,
           active: isActive,
         });
+        phoneId = editId;
+        console.log(`Phone number ${editId} was successfully updated`);
       } else {
-        await createPhoneNumberMutation.mutateAsync({
+        const newPhone = await createPhoneNumberMutation.mutateAsync({
           phoneNumber,
           password,
           active: isActive,
         });
+        phoneId = newPhone.id;
+        console.log(`Phone number ${newPhone.id} was successfully created`);
       }
+
+      // Reset all state when closing the modal
       setIsModalOpen(false);
       setPhoneNumber("");
       setPassword("");
       setIsActive(true);
-      setIsEditMode(false);
+      setIsEditMode(false); // Reset edit mode to false after saving
       setEditId(null);
+
+      // Refetch phone numbers
       await refetch();
+
+      // Redirect to /logs page with the phone number ID as a query parameter
+      router.push(`/logs?phoneNumberId=${phoneId}`);
     } catch (error) {
       console.error("Error saving phone number:", error);
     }
@@ -81,22 +99,50 @@ const PhoneNumbersPage: React.FC = () => {
   const handleEditPhoneNumber = (phone: PhoneNumber) => {
     setPhoneNumber(phone.phoneNumber);
     setPassword(phone.password);
-    setIsActive(phone.active);
+    setIsActive(phone.active); // Set active state from the selected phone number
     setEditId(phone.id);
-    setIsEditMode(true);
-    setIsModalOpen(true);
+    setIsEditMode(true); // Set edit mode to true when editing
+    setIsModalOpen(true); // Open the modal for editing
   };
 
   const handleToggleActive = async (id: string, active: boolean) => {
     try {
       await updatePhoneNumberActiveStatusMutation.mutateAsync({
         id,
-        active: !active,
+        active: !active, // Toggle the active status
       });
+      console.log(`Phone number ${id} active status changed to ${!active}`);
+
+      // Refetch phone numbers
       await refetch();
     } catch (error) {
       console.error("Error updating active status:", error);
     }
+  };
+
+  // Function to redirect to /logs with the phone number ID as a query param
+  const handleRedirectToLogs = async (phoneId: string) => {
+    router.push(`/logs?phoneNumberId=${phoneId}`);
+  };
+
+  // Function to redirect to /posts with the phone number ID as a query param
+  const handleRedirectToPosts = async (phoneId: string) => {
+    router.push(`/posts?phoneNumberId=${phoneId}`);
+  };
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible(!isPasswordVisible);
+  };
+
+  // Handle modal close to reset states properly
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setPhoneNumber("");
+    setPassword("");
+    setIsActive(true);
+    setIsEditMode(false); // Reset edit mode when modal closes
+    setEditId(null);
   };
 
   return (
@@ -108,7 +154,8 @@ const PhoneNumbersPage: React.FC = () => {
         <CardContent>
           <div className="mb-4 flex justify-end">
             <Button onClick={() => setIsModalOpen(true)} variant="default">
-              {isEditMode ? "Edit Phone Number" : "Add Phone Number"}
+              {isEditMode ? "Edit Phone Number" : "Add Phone Number"}{" "}
+              {/* Toggle button text */}
             </Button>
           </div>
 
@@ -117,7 +164,6 @@ const PhoneNumbersPage: React.FC = () => {
               <TableRow>
                 <TableHead>Phone Number</TableHead>
                 <TableHead>Phone Number UUID</TableHead>
-                <TableHead>Password</TableHead>
                 <TableHead>Created On</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead>Action</TableHead>
@@ -128,14 +174,13 @@ const PhoneNumbersPage: React.FC = () => {
                 <TableRow key={number.id}>
                   <TableCell>{number.phoneNumber}</TableCell>
                   <TableCell>{number.id}</TableCell>
-                  <TableCell>{number.password}</TableCell>
                   <TableCell>{number.createdOn.toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Switch
                       checked={number.active}
-                      onCheckedChange={(checked) =>
-                        handleToggleActive(number.id, checked)
-                      }
+                      onCheckedChange={() =>
+                        handleToggleActive(number.id, number.active)
+                      } // Fixed the event handler
                     />
                   </TableCell>
                   <TableCell>
@@ -146,6 +191,18 @@ const PhoneNumbersPage: React.FC = () => {
                       >
                         Edit
                       </Button>
+                      <Button
+                        onClick={() => handleRedirectToLogs(number.id)}
+                        variant="outline"
+                      >
+                        Log
+                      </Button>
+                      <Button
+                        onClick={() => handleRedirectToPosts(number.id)}
+                        variant="outline"
+                      >
+                        Posts
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -155,7 +212,9 @@ const PhoneNumbersPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={() => setIsModalOpen(false)}>
+      <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
+        {" "}
+        {/* Use handleCloseModal to reset state */}
         <DialogContent>
           <DialogTitle>
             {isEditMode ? "Edit Phone Number" : "Add Phone Number"}
@@ -166,16 +225,29 @@ const PhoneNumbersPage: React.FC = () => {
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
             />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                type={isPasswordVisible ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center pr-3"
+                onClick={togglePasswordVisibility}
+              >
+                {isPasswordVisible ? (
+                  <EyeOffIcon className="h-5 w-5 text-gray-500" />
+                ) : (
+                  <EyeIcon className="h-5 w-5 text-gray-500" />
+                )}
+              </button>
+            </div>
             <div className="flex items-center">
               <Switch
                 checked={isActive}
-                onCheckedChange={(checked) => setIsActive(checked)}
+                onCheckedChange={(checked: boolean) => setIsActive(checked)} // This will update the isActive state in the modal
               />
               <label className="ml-2">Active</label>
             </div>
