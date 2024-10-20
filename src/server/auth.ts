@@ -1,55 +1,55 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs"; // Import bcrypt for password hashing
 import {
   getServerSession,
   type DefaultSession,
   type NextAuthOptions,
 } from "next-auth";
-import { type Adapter } from "next-auth/adapters";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "~/server/db";
 
-/**
- * Module augmentation for `next-auth` types.
- */
 declare module "next-auth" {
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
       id: string;
-      username: string; // Add username to the session
+      name: string;
+      email: string;
     } & DefaultSession["user"];
-  }
-
-  interface User {
-    username: string; // Include username in the User interface
   }
 }
 
-/**
- * Options for NextAuth.js
- */
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    session: async ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-        username: user.username, // Include username in the session callback
-      },
-    }),
-    // Redirect after login
-    redirect: async ({ url, baseUrl }) => {
-      // Redirect to dashboard if login is successful
-      return url.startsWith(baseUrl) ? `${baseUrl}/dashboard` : baseUrl;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      session.user = {
+        id: token.id as string,
+        name: token.name!,
+        email: token.email!,
+      };
+
+      return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Redirect to dashboard on successful sign-in
+      if (url === baseUrl || url === `${baseUrl}/`) {
+        return `${baseUrl}/dashboard`;
+      }
+      return url;
     },
   },
-  adapter: PrismaAdapter(db) as Adapter,
+
+  adapter: PrismaAdapter(db),
   providers: [
-    // Credentials provider for username and password
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -73,40 +73,47 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Invalid credentials");
           }
 
-          let isValid = false;
-
-          try {
-            // Verify the password with bcrypt
-            isValid = await bcrypt.compare(credentials.password, user.password);
-          } catch (innerError) {
-            // Handle the bcrypt.compare error specifically
-            console.error("Error comparing passwords:", innerError);
-            if (innerError instanceof Error) {
-              throw new Error(innerError.message);
-            }
-            throw new Error("Password comparison failed");
-          }
+          // Verify the password with bcrypt
+          const isValid = await bcrypt.compare(
+            credentials.password,
+            user.password,
+          );
 
           if (!isValid) {
             throw new Error("Invalid credentials");
           }
 
-          // If everything is valid, return the user object
-          return { id: user.id, username: user.username, email: user.email };
-        } catch (outerError) {
-          // Ensure proper type guarding on the error object
-          if (outerError instanceof Error) {
-            console.error("Error during authorization:", outerError.message);
-            throw new Error(outerError.message);
+          // If everything is valid, return the user object (without the password)
+          return {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+          };
+        } catch (error: unknown) {
+          // <-- Typed as unknown
+          if (error instanceof Error) {
+            // <-- Type guard
+            console.error("Error during authorization:", error.message);
+          } else {
+            console.error("Unknown error during authorization");
           }
-          throw new Error("Unknown error occurred during authorization");
+          throw new Error("Invalid credentials");
         }
       },
     }),
   ],
+
+  session: {
+    strategy: "jwt",
+    maxAge: 604800, // 7 days
+  },
+  jwt: {
+    maxAge: 604800, // 7 days
+  },
+  pages: {
+    signIn: "/login",
+  },
+  debug: false,
 };
 
-/**
- * Wrapper for `getServerSession` so that you don't need to import the `authOptions` in every file.
- */
 export const getServerAuthSession = () => getServerSession(authOptions);

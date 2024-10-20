@@ -1,8 +1,13 @@
 "use client";
+
 import React, { useState } from "react";
 import Layout from "~/components/layout";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import LoadingSpinner from "~/components/ui/loadingSpinner";
+import { Switch } from "~/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -11,35 +16,87 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { api } from "~/trpc/react";
+
+// Updated 'PhoneNumber' interface: 'createdOn' is now a Date
+interface PhoneNumber {
+  id: string;
+  phoneNumber: string;
+  password: string;
+  active: boolean;
+  createdOn: Date;
+}
 
 const PhoneNumbersPage: React.FC = () => {
-  const [phoneNumbers, setPhoneNumbers] = useState([
-    {
-      phoneNumber: "1-333-222-4444",
-      uuid: "123e4567-e89b-12d3-a456-426614174000",
-      password: "********",
-      createdOn: "10/17/2024",
-    },
-  ]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [editId, setEditId] = useState<string | null>(null);
 
-  const handleAddPhoneNumber = () => {
-    // Function to handle adding a new phone number
-    const newPhoneNumber = {
-      phoneNumber: "New-Phone-Number",
-      uuid: "Generated-UUID",
-      password: "********",
-      createdOn: new Date().toLocaleDateString(),
-    };
+  // Fetch all phone numbers from the API using tRPC
+  const {
+    data: phoneNumbers,
+    isLoading,
+    refetch,
+  } = api.phoneNumber.getAllPhoneNumbers.useQuery();
 
-    setPhoneNumbers([...phoneNumbers, newPhoneNumber]);
+  // tRPC mutations
+  const createPhoneNumberMutation =
+    api.phoneNumber.createPhoneNumber.useMutation();
+  const updatePhoneNumberActiveStatusMutation =
+    api.phoneNumber.updatePhoneNumberActiveStatus.useMutation();
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  const handleSavePhoneNumber = async () => {
+    try {
+      if (isEditMode && editId) {
+        await updatePhoneNumberActiveStatusMutation.mutateAsync({
+          id: editId,
+          active: isActive,
+        });
+      } else {
+        await createPhoneNumberMutation.mutateAsync({
+          phoneNumber,
+          password,
+          active: isActive,
+        });
+      }
+      setIsModalOpen(false);
+      setPhoneNumber("");
+      setPassword("");
+      setIsActive(true);
+      setIsEditMode(false);
+      setEditId(null);
+      await refetch();
+    } catch (error) {
+      console.error("Error saving phone number:", error);
+    }
   };
 
-  const handlePostsClick = (phoneNumber: string) => {
-    alert(`Posts for phone number: ${phoneNumber}`);
+  const handleEditPhoneNumber = (phone: PhoneNumber) => {
+    setPhoneNumber(phone.phoneNumber);
+    setPassword(phone.password);
+    setIsActive(phone.active);
+    setEditId(phone.id);
+    setIsEditMode(true);
+    setIsModalOpen(true);
   };
 
-  const handleLogClick = (phoneNumber: string) => {
-    alert(`Log for phone number: ${phoneNumber}`);
+  const handleToggleActive = async (id: string, active: boolean) => {
+    try {
+      await updatePhoneNumberActiveStatusMutation.mutateAsync({
+        id,
+        active: !active,
+      });
+      await refetch();
+    } catch (error) {
+      console.error("Error updating active status:", error);
+    }
   };
 
   return (
@@ -49,14 +106,12 @@ const PhoneNumbersPage: React.FC = () => {
           <CardTitle className="text-2xl font-bold">Phone Numbers</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Add Phone Number Button */}
           <div className="mb-4 flex justify-end">
-            <Button onClick={handleAddPhoneNumber} variant="default">
-              Add Phone Number
+            <Button onClick={() => setIsModalOpen(true)} variant="default">
+              {isEditMode ? "Edit Phone Number" : "Add Phone Number"}
             </Button>
           </div>
 
-          {/* Phone Number Table */}
           <Table>
             <TableHeader>
               <TableRow>
@@ -64,30 +119,32 @@ const PhoneNumbersPage: React.FC = () => {
                 <TableHead>Phone Number UUID</TableHead>
                 <TableHead>Password</TableHead>
                 <TableHead>Created On</TableHead>
+                <TableHead>Active</TableHead>
                 <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {phoneNumbers.map((number, index) => (
-                <TableRow key={index}>
+              {phoneNumbers?.map((number: PhoneNumber) => (
+                <TableRow key={number.id}>
                   <TableCell>{number.phoneNumber}</TableCell>
-                  <TableCell>{number.uuid}</TableCell>
+                  <TableCell>{number.id}</TableCell>
                   <TableCell>{number.password}</TableCell>
-                  <TableCell>{number.createdOn}</TableCell>
+                  <TableCell>{number.createdOn.toLocaleDateString()}</TableCell>
                   <TableCell>
-                    {/* Action Buttons */}
+                    <Switch
+                      checked={number.active}
+                      onCheckedChange={(checked) =>
+                        handleToggleActive(number.id, checked)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
                     <div className="flex space-x-2">
                       <Button
-                        onClick={() => handlePostsClick(number.phoneNumber)}
+                        onClick={() => handleEditPhoneNumber(number)}
                         variant="outline"
                       >
-                        Posts
-                      </Button>
-                      <Button
-                        onClick={() => handleLogClick(number.phoneNumber)}
-                        variant="outline"
-                      >
-                        Log
+                        Edit
                       </Button>
                     </div>
                   </TableCell>
@@ -97,6 +154,41 @@ const PhoneNumbersPage: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isModalOpen} onOpenChange={() => setIsModalOpen(false)}>
+        <DialogContent>
+          <DialogTitle>
+            {isEditMode ? "Edit Phone Number" : "Add Phone Number"}
+          </DialogTitle>
+          <div className="space-y-4">
+            <Input
+              placeholder="Phone Number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+            />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <div className="flex items-center">
+              <Switch
+                checked={isActive}
+                onCheckedChange={(checked) => setIsActive(checked)}
+              />
+              <label className="ml-2">Active</label>
+            </div>
+            <Button
+              onClick={handleSavePhoneNumber}
+              variant="default"
+              className="w-full"
+            >
+              {isEditMode ? "Save Changes" : "Add Phone Number"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

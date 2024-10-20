@@ -11,7 +11,7 @@ export default function Home() {
   useEffect(() => {
     if (status === "loading") return;
     if (!session) {
-      void router.push("/api/auth/signin");
+      void router.push("/login");
     } else {
       void router.push("/dashboard");
     }

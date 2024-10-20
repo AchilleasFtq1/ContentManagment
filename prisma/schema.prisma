@@ -12,10 +12,20 @@ model PhoneNumber {
   phoneNumber   String          @unique
   password      String
   createdOn     DateTime        @default(now())
-  active        Boolean         @default(true)
+  active        Boolean         @default(true) // Already present
   posts         Post[] // Relationship to posts
   PhoneGroupUrl PhoneGroupUrl[]
   PhoneAppRel   PhoneAppRel[]
+}
+
+model PostLog {
+  id        String   @id @default(cuid())
+  postId    String // ID of the post requested
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  requestIp String? // IP address of the client making the request
+  userId    String? // ID of the user making the request (optional)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
 }
 
 model App {
@@ -57,6 +67,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   posts         Post[] // Relationship to posts
+  PostLog       PostLog[]
 }
 
 model Content {
@@ -117,6 +128,7 @@ model Post {
   User          User?          @relation(fields: [userId], references: [id])
   userId        String?
   ContentMedia  ContentMedia[]
+  PostLog       PostLog[]
 }
 
 model PhoneGroupUrl {

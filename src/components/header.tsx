@@ -17,7 +17,7 @@ export function Header() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await signOut({});
+    await signOut({ callbackUrl: "/api/auth/signin" });
   };
 
   const handleNavigation = (path: string) => {
@@ -30,7 +30,7 @@ export function Header() {
         <title>Management System</title>
       </Head>
 
-      <header className="bg-background sticky top-0 flex h-16 items-center gap-4 border-b px-4 shadow-md md:px-6">
+      <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-md md:px-6">
         {/* Menu items with stronger shadow */}
         <nav className="flex flex-grow justify-center space-x-8 text-lg font-medium">
           <Button

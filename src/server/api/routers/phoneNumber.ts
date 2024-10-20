@@ -1,5 +1,4 @@
 import { z } from "zod";
-
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -15,12 +14,14 @@ export const phoneNumberRouter = createTRPCRouter({
       z.object({
         phoneNumber: z.string().min(1),
         password: z.string().min(6),
+        active: z.boolean().default(true), // 'active' field with a default value
       }),
     )
     .mutation(async ({ input }) => {
       return await phoneNumberService.registerPhoneNumber(
         input.phoneNumber,
         input.password,
+        input.active,
       );
     }),
 
@@ -30,19 +31,18 @@ export const phoneNumberRouter = createTRPCRouter({
       return await phoneNumberService.getPhoneNumberDetails(input);
     }),
 
-  updatePhoneNumber: protectedProcedure
+  updatePhoneNumberActiveStatus: protectedProcedure
     .input(
       z.object({
         id: z.string(),
-        data: z.object({
-          phoneNumber: z.string().optional(),
-          password: z.string().optional(),
-          active: z.boolean().optional(),
-        }),
+        active: z.boolean(), // Only updating the 'active' field
       }),
     )
     .mutation(async ({ input }) => {
-      return await phoneNumberService.updatePhoneNumber(input.id, input.data);
+      return await phoneNumberService.updatePhoneNumberActiveStatus(
+        input.id,
+        input.active,
+      );
     }),
 
   deletePhoneNumber: protectedProcedure
