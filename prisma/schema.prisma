@@ -122,6 +122,7 @@ model Post {
   productId     String?
   app           App?           @relation(fields: [appId], references: [id])
   appId         String?
+  type          String
   status        Boolean        @default(false) // Indicates post success
   failReason    String?
   createdOn     DateTime       @default(now())

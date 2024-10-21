@@ -2,19 +2,21 @@
 // PostService.ts
 
 // Import necessary modules and repositories
+import { type Post } from "@prisma/client";
 import { validate as uuidValidate } from "uuid"; // For UUID validation
 import { AppRepository } from "../repositories/AppRepository";
 import { ContentRepository } from "../repositories/ContentRepository";
 import { PhoneNumberRepository } from "../repositories/PhoneNumberRepository";
+import { PostLogRepository } from "../repositories/PostLogRepository"; // Import PostLog Repository
 import { PostRepository } from "../repositories/PostRepository";
 import { ProductRepository } from "../repositories/ProductRepository";
-import { type Post } from "@prisma/client";
 
 const postRepo = new PostRepository();
 const phoneNumberRepo = new PhoneNumberRepository();
 const contentRepo = new ContentRepository();
 const appRepo = new AppRepository();
 const productRepo = new ProductRepository();
+const postLogRepo = new PostLogRepository(); // Initialize PostLog Repository
 
 // Define interface for PostHistoryFilters
 interface PostHistoryFilters {
@@ -26,6 +28,7 @@ interface PostHistoryFilters {
 }
 
 export class PostService {
+  // Method to create a post
   async createPost(
     phoneNumberId: string,
     contentId: string,
@@ -77,6 +80,12 @@ export class PostService {
     );
   }
 
+  // Method to get all posts
+  async getAllPosts() {
+    return await postRepo.getAll();
+  }
+
+  // Method to get details of a post by ID
   async getPostDetails(id: string) {
     // Validate UUID
     if (!uuidValidate(id)) {
@@ -85,6 +94,7 @@ export class PostService {
     return await postRepo.getById(id);
   }
 
+  // Method to update a post
   async updatePost(id: string, data: Record<string, unknown>) {
     // Validate UUID
     if (!uuidValidate(id)) {
@@ -94,6 +104,7 @@ export class PostService {
     return await postRepo.update(id, data);
   }
 
+  // Method to delete a post by ID
   async deletePost(id: string) {
     // Validate UUID
     if (!uuidValidate(id)) {
@@ -102,6 +113,7 @@ export class PostService {
     return await postRepo.delete(id);
   }
 
+  // Method to update the status of a post
   async updateStatus(
     id: string,
     status: boolean,
@@ -115,13 +127,102 @@ export class PostService {
     return await postRepo.updateStatus(id, status, failReason);
   }
 
-  async getHistory(filters: {
-    content_uuid?: string;
-    media_uuid?: string;
-    phone_uuid?: string;
+  // Method to get all post logs
+  async getAllPostLogs() {
+    return await postLogRepo.getAllLogs();
+  }
+
+  async getPostLogHistory(filters: {
+    postId?: string;
+    userId?: string;
+    requestIp?: string;
     from_date?: Date | string;
     end_date?: Date | string;
   }) {
+    // Destructure filters
+    const { postId, userId, requestIp, from_date, end_date } = filters;
+
+    // Initialize an object to collect validated and transformed filters
+    const validatedFilters: {
+      postId?: string;
+      userId?: string;
+      requestIp?: string;
+      from_date?: Date;
+      end_date?: Date;
+    } = {};
+
+    // Validate UUIDs
+    if (postId) {
+      if (!uuidValidate(postId)) {
+        throw new Error("Invalid postId format");
+      }
+      validatedFilters.postId = postId;
+    }
+
+    if (userId) {
+      if (!uuidValidate(userId)) {
+        throw new Error("Invalid userId format");
+      }
+      validatedFilters.userId = userId;
+    }
+
+    // Validate and transform requestIp
+    if (requestIp) {
+      // Optionally, add specific IP validation logic if required
+      validatedFilters.requestIp = requestIp;
+    }
+
+    // Validate and transform dates
+    let fromDateObj: Date | undefined;
+    if (from_date) {
+      fromDateObj = new Date(from_date);
+      if (isNaN(fromDateObj.getTime())) {
+        throw new Error("Invalid from_date");
+      }
+      validatedFilters.from_date = fromDateObj;
+    }
+
+    let endDateObj: Date | undefined;
+    if (end_date) {
+      endDateObj = new Date(end_date);
+      if (isNaN(endDateObj.getTime())) {
+        throw new Error("Invalid end_date");
+      }
+      validatedFilters.end_date = endDateObj;
+    }
+
+    // Ensure from_date is not after end_date
+    if (fromDateObj && endDateObj && fromDateObj > endDateObj) {
+      throw new Error("from_date cannot be after end_date");
+    }
+
+    // Pass the validated and transformed filters to the repository method
+    return await postLogRepo.getLogsWithFilters(validatedFilters);
+  }
+
+  // Method to find posts by social media UUID
+  async findBySocialMediaUuid(social_media_uuid: string): Promise<Post[]> {
+    // Validate UUID
+    if (!uuidValidate(social_media_uuid)) {
+      throw new Error("Invalid social_media_uuid format");
+    }
+
+    // Check if the App (social media platform) exists
+    const app = await appRepo.getById(social_media_uuid);
+    if (!app) {
+      throw new Error("Social media platform does not exist");
+    }
+
+    // Fetch posts associated with the given social_media_uuid
+    const posts = await postRepo.findBySocialMediaUuid(social_media_uuid);
+
+    // Optional: Perform additional processing or filtering if needed
+
+    return posts;
+  }
+
+  // Method to get history of posts based on filters (content_uuid, media_uuid, phone_uuid)
+  async getHistory(filters: PostHistoryFilters) {
     // Destructure filters
     const { content_uuid, media_uuid, phone_uuid, from_date, end_date } =
       filters;
@@ -177,24 +278,5 @@ export class PostService {
 
     // Pass the validated and transformed filters to the repository method
     return await postRepo.getPostsWithFilters(validatedFilters);
-  }
-  async findBySocialMediaUuid(social_media_uuid: string): Promise<Post[]> {
-    // Validate UUID
-    if (!uuidValidate(social_media_uuid)) {
-      throw new Error("Invalid social_media_uuid format");
-    }
-
-    // Check if the App (social media platform) exists
-    const app = await appRepo.getById(social_media_uuid);
-    if (!app) {
-      throw new Error("Social media platform does not exist");
-    }
-
-    // Fetch posts associated with the given social_media_uuid
-    const posts = await postRepo.findBySocialMediaUuid(social_media_uuid);
-
-    // Optional: Perform additional processing or filtering if needed
-
-    return posts;
   }
 }

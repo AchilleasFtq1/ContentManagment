@@ -18,6 +18,11 @@ export const productRouter = createTRPCRouter({
       return await productService.createProduct(input.productName, input.appId);
     }),
 
+  getProductsByAppId: protectedProcedure
+    .input(z.object({ appId: z.string() })) // Accepts appId as input
+    .query(async ({ input }) => {
+      return await productService.getProductsByAppId(input.appId); // Calls the service to fetch products by appId
+    }),
   getProductById: protectedProcedure
     .input(z.object({ productId: z.string() }))
     .query(async ({ input }) => {

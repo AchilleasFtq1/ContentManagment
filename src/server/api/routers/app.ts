@@ -5,7 +5,7 @@ import { AppService } from "../../services/AppService";
 
 const appService = new AppService();
 
-export const appRouter = createTRPCRouter({
+export const appRoute = createTRPCRouter({
   createApp: protectedProcedure
     .input(
       z.object({
@@ -26,6 +26,16 @@ export const appRouter = createTRPCRouter({
   getAllApps: protectedProcedure.query(async () => {
     return await appService.getAllApps();
   }),
+  updateAppStatus: protectedProcedure
+    .input(
+      z.object({
+        appId: z.string(), // appId to identify the app
+        active: z.boolean(), // status to be updated
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await appService.updateApp(input.appId, { active: input.active });
+    }),
 
   updateApp: protectedProcedure
     .input(

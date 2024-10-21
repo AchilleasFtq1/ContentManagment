@@ -18,6 +18,14 @@ export class ProductService {
     return productRepo.getById(id);
   }
 
+  async getProductsByAppId(appId: string) {
+    const app = await appRepo.getById(appId);
+    if (!app) {
+      throw new Error("App does not exist");
+    }
+    return productRepo.getByAppId(appId);
+  }
+
   async updateProduct(id: string, data: Record<string, unknown>) {
     return productRepo.update(id, data);
   }
