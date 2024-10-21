@@ -119,12 +119,21 @@ export const postRouter = createTRPCRouter({
     .query(async ({ input }) => {
       return await postService.getPostLogHistory(input);
     }),
+  getPostsByPhoneNumberId: protectedProcedure
+    .input(
+      z.object({
+        phoneNumberId: z.string(),
+      }),
+    )
+    .query(async ({ input }) => {
+      return await postService.getPostsByPhoneNumberId(input.phoneNumberId);
+    }),
 
   // Fixed Route for getting post log history by phone number ID
   getPostLogHistoryByPhoneNumberId: protectedProcedure
     .input(
       z.object({
-        phoneNumberId: z.string().uuid(), // UUID validation for phoneNumberId
+        phoneNumberId: z.string(), // UUID validation for phoneNumberId
       }),
     )
     .query(async ({ input }) => {

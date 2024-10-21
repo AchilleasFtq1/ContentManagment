@@ -281,11 +281,19 @@ export class PostService {
     // Pass the validated and transformed filters to the repository method
     return await postRepo.getPostsWithFilters(validatedFilters);
   }
+
+  async getPostsByPhoneNumberId(phoneNumberId: string) {
+    // Validate UUID format for phoneNumberId
+
+    // Use the repository method to fetch posts
+    const posts = await postRepo.getByPhoneNumberId(phoneNumberId);
+
+    // Optional: Additional processing on posts if needed
+    return posts;
+  }
+
   async getPostLogHistoryByPhoneNumberId(phoneNumberId: string) {
     // Validate the UUID
-    if (!uuidValidate(phoneNumberId)) {
-      throw new Error("Invalid phoneNumberId format");
-    }
 
     // Retrieve post logs by phoneNumberId (adjust this logic to your database structure)
     return await postRepo.getPostLogsByPhoneNumberId(phoneNumberId);

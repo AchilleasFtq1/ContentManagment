@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation"; // Import useSearchParams to get query params
 import React, { useState } from "react";
 import Layout from "~/components/layout";
 import { Button } from "~/components/ui/button";
@@ -29,10 +30,16 @@ interface Post {
 }
 
 const PostsPage: React.FC = () => {
-  // Fetch posts data from tRPC
-  const { data: rawPosts, isLoading } = api.posts.getAllPosts.useQuery();
+  const router = useRouter();
+  const searchParams = useSearchParams(); // Get the query params
+  const phoneNumberId = searchParams?.get("phoneNumberId"); // Extract the phoneNumberId from query params
 
   const [sortAsc, setSortAsc] = useState(true);
+
+  // Fetch posts based on the presence of phoneNumberId
+  const { data: rawPosts, isLoading } = phoneNumberId
+    ? api.posts.getPostsByPhoneNumberId.useQuery({ phoneNumberId })
+    : api.posts.getAllPosts.useQuery();
 
   // Transform the raw data to match the Post interface
   const posts: Post[] | undefined = rawPosts?.map((post) => ({

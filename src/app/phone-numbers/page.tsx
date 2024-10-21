@@ -120,7 +120,6 @@ const PhoneNumbersPage: React.FC = () => {
 
       closeModal(); // Close modal and reset form
       await refetch(); // Refetch the phone numbers
-      router.push(`/logs?phoneNumberId=${phoneId}`); // Redirect to logs page
     } catch (error) {
       console.error("Error saving phone number:", error);
     }
@@ -154,6 +153,11 @@ const PhoneNumbersPage: React.FC = () => {
     setSelectedPhoneId(phoneId);
     setIsLogModalOpen(true);
     await refetchPostLogs(); // Fetch post logs
+  };
+
+  // Redirect to the posts page with phone number ID
+  const handleViewPosts = (phoneNumberId: string) => {
+    router.push(`/posts?phoneNumberId=${phoneNumberId}`);
   };
 
   // Close modal and reset form
@@ -217,6 +221,12 @@ const PhoneNumbersPage: React.FC = () => {
                         variant="outline"
                       >
                         Log
+                      </Button>
+                      <Button
+                        onClick={() => handleViewPosts(number.id)}
+                        variant="outline"
+                      >
+                        View Posts
                       </Button>
                     </div>
                   </TableCell>
