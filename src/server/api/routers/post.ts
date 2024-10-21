@@ -13,6 +13,7 @@ export const postRouter = createTRPCRouter({
         contentId: z.string().uuid(),
         appId: z.string().uuid(),
         productId: z.string().uuid(),
+        type: z.string(),
         status: z.boolean().optional().default(false),
         failReason: z.string().nullable().optional(),
       }),
@@ -23,6 +24,7 @@ export const postRouter = createTRPCRouter({
         input.contentId,
         input.appId,
         input.productId,
+        input.type,
         input.status,
         input.failReason,
       );
@@ -116,5 +118,41 @@ export const postRouter = createTRPCRouter({
     )
     .query(async ({ input }) => {
       return await postService.getPostLogHistory(input);
+    }),
+
+  // Fixed Route for getting post log history by phone number ID
+  getPostLogHistoryByPhoneNumberId: protectedProcedure
+    .input(
+      z.object({
+        phoneNumberId: z.string().uuid(), // UUID validation for phoneNumberId
+      }),
+    )
+    .query(async ({ input }) => {
+      const logs = await postService.getPostLogHistoryByPhoneNumberId(
+        input.phoneNumberId,
+      );
+
+      // Map the logs to return only the necessary fields in a type-safe way
+      return logs.map(
+        (log: {
+          id: string;
+          post: {
+            id: string;
+            requestIp?: string | null;
+            userId?: string | null;
+            createdAt?: string | null;
+            status?: boolean;
+            failReason?: string | null;
+          };
+        }) => ({
+          id: log.id,
+          postId: log.post.id,
+          requestIp: log.post.requestIp ?? null,
+          userId: log.post.userId ?? null,
+          createdAt: log.post.createdAt ?? null,
+          status: log.post.status ?? false,
+          failReason: log.post.failReason ?? null,
+        }),
+      );
     }),
 });

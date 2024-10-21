@@ -1,8 +1,8 @@
 "use client";
 
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import { useRouter } from "next/navigation"; // Import useRouter for redirection
-import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import Layout from "~/components/layout";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -20,7 +20,7 @@ import {
 } from "~/components/ui/table";
 import { api } from "~/trpc/react";
 
-// Updated 'PhoneNumber' interface: 'createdOn' is now a Date
+// Define types for PhoneNumber and PostLog
 interface PhoneNumber {
   id: string;
   phoneNumber: string;
@@ -29,34 +29,76 @@ interface PhoneNumber {
   createdOn: Date;
 }
 
+interface PostLog {
+  id: string;
+  postId: string;
+  requestIp: string | null;
+  userId: string | null;
+  createdAt: Date;
+  status: boolean;
+  failReason: string | null;
+}
+
 const PhoneNumbersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false); // Track if edit mode is active
+  const [isEditMode, setIsEditMode] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false); // Toggle password visibility
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
 
-  const router = useRouter(); // Initialize router for redirection
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [postLogs, setPostLogs] = useState<PostLog[]>([]);
+  const [selectedPhoneId, setSelectedPhoneId] = useState<string | null>(null);
 
-  // Fetch all phone numbers from the API using tRPC
+  const router = useRouter();
+
+  // Fetch all phone numbers using tRPC
   const {
     data: phoneNumbers,
     isLoading,
     refetch,
   } = api.phoneNumber.getAllPhoneNumbers.useQuery();
 
-  // tRPC mutations
+  // tRPC mutations for creating and updating phone numbers
   const createPhoneNumberMutation =
     api.phoneNumber.createPhoneNumber.useMutation();
   const updatePhoneNumberActiveStatusMutation =
     api.phoneNumber.updatePhoneNumberActiveStatus.useMutation();
 
+  // Fetch post logs by phone number ID
+  const { data: postLogsData, refetch: refetchPostLogs } =
+    api.posts.getPostLogHistoryByPhoneNumberId.useQuery(
+      { phoneNumberId: selectedPhoneId ?? "" },
+      {
+        enabled: !!selectedPhoneId, // Ensure query only runs when phoneNumberId is available
+      },
+    );
+
+  // Map post logs when data is fetched
+  useEffect(() => {
+    if (postLogsData) {
+      const mappedLogs: PostLog[] = postLogsData.map((log) => ({
+        id: log.id,
+        postId: log.postId, // Use correct field
+        requestIp: log.requestIp ?? null,
+        userId: log.userId ?? null,
+        createdAt: log.createdAt ? new Date(log.createdAt) : new Date(), // Handle missing or null createdAt
+        status: log.status ?? false,
+        failReason: log.failReason ?? null,
+      }));
+
+      setPostLogs(mappedLogs);
+    }
+  }, [postLogsData]);
+
+  // Loading spinner while data is fetching
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
+  // Function to save or update a phone number
   const handleSavePhoneNumber = async () => {
     try {
       let phoneId: string | null = null;
@@ -67,7 +109,6 @@ const PhoneNumbersPage: React.FC = () => {
           active: isActive,
         });
         phoneId = editId;
-        console.log(`Phone number ${editId} was successfully updated`);
       } else {
         const newPhone = await createPhoneNumberMutation.mutateAsync({
           phoneNumber,
@@ -75,73 +116,53 @@ const PhoneNumbersPage: React.FC = () => {
           active: isActive,
         });
         phoneId = newPhone.id;
-        console.log(`Phone number ${newPhone.id} was successfully created`);
       }
 
-      // Reset all state when closing the modal
-      setIsModalOpen(false);
-      setPhoneNumber("");
-      setPassword("");
-      setIsActive(true);
-      setIsEditMode(false); // Reset edit mode to false after saving
-      setEditId(null);
-
-      // Refetch phone numbers
-      await refetch();
-
-      // Redirect to /logs page with the phone number ID as a query parameter
-      router.push(`/logs?phoneNumberId=${phoneId}`);
+      closeModal(); // Close modal and reset form
+      await refetch(); // Refetch the phone numbers
+      router.push(`/logs?phoneNumberId=${phoneId}`); // Redirect to logs page
     } catch (error) {
       console.error("Error saving phone number:", error);
     }
   };
 
+  // Function to edit a phone number
   const handleEditPhoneNumber = (phone: PhoneNumber) => {
     setPhoneNumber(phone.phoneNumber);
     setPassword(phone.password);
-    setIsActive(phone.active); // Set active state from the selected phone number
+    setIsActive(phone.active);
     setEditId(phone.id);
-    setIsEditMode(true); // Set edit mode to true when editing
-    setIsModalOpen(true); // Open the modal for editing
+    setIsEditMode(true);
+    setIsModalOpen(true);
   };
 
+  // Function to toggle the active status of a phone number
   const handleToggleActive = async (id: string, active: boolean) => {
     try {
       await updatePhoneNumberActiveStatusMutation.mutateAsync({
         id,
-        active: !active, // Toggle the active status
+        active: !active,
       });
-      console.log(`Phone number ${id} active status changed to ${!active}`);
-
-      // Refetch phone numbers
-      await refetch();
+      await refetch(); // Refetch phone numbers after updating
     } catch (error) {
       console.error("Error updating active status:", error);
     }
   };
 
-  // Function to redirect to /logs with the phone number ID as a query param
-  const handleRedirectToLogs = async (phoneId: string) => {
-    router.push(`/logs?phoneNumberId=${phoneId}`);
+  // Open modal for viewing logs and fetch post logs
+  const handleLogModalOpen = async (phoneId: string) => {
+    setSelectedPhoneId(phoneId);
+    setIsLogModalOpen(true);
+    await refetchPostLogs(); // Fetch post logs
   };
 
-  // Function to redirect to /posts with the phone number ID as a query param
-  const handleRedirectToPosts = async (phoneId: string) => {
-    router.push(`/posts?phoneNumberId=${phoneId}`);
-  };
-
-  // Toggle password visibility
-  const togglePasswordVisibility = () => {
-    setIsPasswordVisible(!isPasswordVisible);
-  };
-
-  // Handle modal close to reset states properly
-  const handleCloseModal = () => {
+  // Close modal and reset form
+  const closeModal = () => {
     setIsModalOpen(false);
     setPhoneNumber("");
     setPassword("");
     setIsActive(true);
-    setIsEditMode(false); // Reset edit mode when modal closes
+    setIsEditMode(false);
     setEditId(null);
   };
 
@@ -154,11 +175,9 @@ const PhoneNumbersPage: React.FC = () => {
         <CardContent>
           <div className="mb-4 flex justify-end">
             <Button onClick={() => setIsModalOpen(true)} variant="default">
-              {isEditMode ? "Edit Phone Number" : "Add Phone Number"}{" "}
-              {/* Toggle button text */}
+              {isEditMode ? "Edit Phone Number" : "Add Phone Number"}
             </Button>
           </div>
-
           <Table>
             <TableHeader>
               <TableRow>
@@ -174,13 +193,15 @@ const PhoneNumbersPage: React.FC = () => {
                 <TableRow key={number.id}>
                   <TableCell>{number.phoneNumber}</TableCell>
                   <TableCell>{number.id}</TableCell>
-                  <TableCell>{number.createdOn.toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {new Date(number.createdOn).toLocaleDateString()}
+                  </TableCell>
                   <TableCell>
                     <Switch
                       checked={number.active}
                       onCheckedChange={() =>
                         handleToggleActive(number.id, number.active)
-                      } // Fixed the event handler
+                      }
                     />
                   </TableCell>
                   <TableCell>
@@ -192,16 +213,10 @@ const PhoneNumbersPage: React.FC = () => {
                         Edit
                       </Button>
                       <Button
-                        onClick={() => handleRedirectToLogs(number.id)}
+                        onClick={() => handleLogModalOpen(number.id)}
                         variant="outline"
                       >
                         Log
-                      </Button>
-                      <Button
-                        onClick={() => handleRedirectToPosts(number.id)}
-                        variant="outline"
-                      >
-                        Posts
                       </Button>
                     </div>
                   </TableCell>
@@ -212,9 +227,46 @@ const PhoneNumbersPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
-        {" "}
-        {/* Use handleCloseModal to reset state */}
+      {/* Modal for viewing post logs */}
+      <Dialog
+        open={isLogModalOpen}
+        onOpenChange={() => setIsLogModalOpen(false)}
+      >
+        <DialogContent>
+          <DialogTitle>Post Log History</DialogTitle>
+          <div className="max-h-[400px] space-y-4 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Post ID</TableHead>
+                  <TableHead>Request IP</TableHead>
+                  <TableHead>User ID</TableHead>
+                  <TableHead>Created At</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Fail Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {postLogs?.map((log: PostLog) => (
+                  <TableRow key={log.id}>
+                    <TableCell>{log.postId}</TableCell>
+                    <TableCell>{log.requestIp ?? "N/A"}</TableCell>
+                    <TableCell>{log.userId ?? "N/A"}</TableCell>
+                    <TableCell>
+                      {new Date(log.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{log.status ? "Success" : "Failed"}</TableCell>
+                    <TableCell>{log.failReason ?? "N/A"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal for adding/editing phone number */}
+      <Dialog open={isModalOpen} onOpenChange={closeModal}>
         <DialogContent>
           <DialogTitle>
             {isEditMode ? "Edit Phone Number" : "Add Phone Number"}
@@ -235,7 +287,7 @@ const PhoneNumbersPage: React.FC = () => {
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 flex items-center pr-3"
-                onClick={togglePasswordVisibility}
+                onClick={() => setIsPasswordVisible(!isPasswordVisible)}
               >
                 {isPasswordVisible ? (
                   <EyeOffIcon className="h-5 w-5 text-gray-500" />
@@ -244,13 +296,11 @@ const PhoneNumbersPage: React.FC = () => {
                 )}
               </button>
             </div>
-            <div className="flex items-center">
-              <Switch
-                checked={isActive}
-                onCheckedChange={(checked: boolean) => setIsActive(checked)} // This will update the isActive state in the modal
-              />
-              <label className="ml-2">Active</label>
-            </div>
+            <Switch
+              checked={isActive}
+              onCheckedChange={(checked) => setIsActive(checked)}
+            />
+            <label className="ml-2">Active</label>
             <Button
               onClick={handleSavePhoneNumber}
               variant="default"

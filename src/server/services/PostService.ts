@@ -34,6 +34,7 @@ export class PostService {
     contentId: string,
     appId: string,
     productId: string,
+    type: string,
     status = false,
     failReason: string | null = null,
   ) {
@@ -74,6 +75,7 @@ export class PostService {
       phoneNumberId,
       contentId,
       appId,
+      type,
       productId,
       status,
       failReason,
@@ -278,5 +280,14 @@ export class PostService {
 
     // Pass the validated and transformed filters to the repository method
     return await postRepo.getPostsWithFilters(validatedFilters);
+  }
+  async getPostLogHistoryByPhoneNumberId(phoneNumberId: string) {
+    // Validate the UUID
+    if (!uuidValidate(phoneNumberId)) {
+      throw new Error("Invalid phoneNumberId format");
+    }
+
+    // Retrieve post logs by phoneNumberId (adjust this logic to your database structure)
+    return await postRepo.getPostLogsByPhoneNumberId(phoneNumberId);
   }
 }

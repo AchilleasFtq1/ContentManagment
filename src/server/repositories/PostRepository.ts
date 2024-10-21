@@ -9,12 +9,21 @@ export class PostRepository {
     phoneNumberId: string,
     contentId: string,
     appId: string,
+    type: string,
     productId: string,
     status = false,
     failReason: string | null = null,
   ): Promise<Post> {
     return await prisma.post.create({
-      data: { phoneNumberId, contentId, appId, productId, status, failReason },
+      data: {
+        phoneNumberId,
+        contentId,
+        appId,
+        type,
+        productId,
+        status,
+        failReason,
+      },
     });
   }
 
@@ -142,6 +151,25 @@ export class PostRepository {
         product: true,
         app: true,
         ContentMedia: true,
+      },
+    });
+  }
+  async getPostLogsByPhoneNumberId(phoneNumberId: string) {
+    return prisma.postLog.findMany({
+      where: {
+        post: {
+          phoneNumberId, // Fetch logs by filtering the phoneNumberId via the post relation
+        },
+      },
+      include: {
+        post: {
+          include: {
+            phoneNumber: true, // Include the phone number details in the result
+            content: true, // Include content details if needed
+            app: true, // Include app details if needed
+            product: true, // Include product details if needed
+          },
+        },
       },
     });
   }
